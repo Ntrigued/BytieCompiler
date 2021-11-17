@@ -1,0 +1,4 @@
+number ::= <number>
+variable =
+expression ::= expr (+,-,/,*) expr | number  | func_call
+assignment ::= variable = expression
