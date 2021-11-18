@@ -195,7 +195,7 @@ class CompareGreater(Comparison):
     pass
 
 
-class IfElseBlock(BranchPoint):
+class IfElseBlock(CFGNode):
     def __init__(self, bool_cond, true_block, false_block):
         super().__init__()
 
@@ -222,6 +222,26 @@ class IfElseBlock(BranchPoint):
             node.print(indent+2)
         print('\t'*indent + ')')
 
+
+class WhileBlock(CFGNode):
+    def __init__(self, bool_cond, code_block):
+        super().__init__()
+
+        assert isinstance(bool_cond, BooleanCondition)
+        assert isinstance(code_block, list)
+        for item in code_block:
+            assert isinstance(item, CFGNode)
+        self.bool_cond = bool_cond
+        self.code_block = code_block
+
+    def print(self, indent=0):
+        print('\t'*indent + 'WhileBlock(')
+        print('\t'*(indent+1) + 'BooleanCondition:')
+        self.bool_cond.print(indent+2)
+        print('\t'*(indent+1) + 'Code Block:')
+        for node in self.code_block:
+            node.print(indent+2)
+        print('\t'*indent + ')')
 
 class InterpreterDebugNode(CFGNode):
     """

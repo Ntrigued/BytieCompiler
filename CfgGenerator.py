@@ -100,8 +100,8 @@ class CfgGenerator():
     def if_else(self, bool_cond, true_block, false_block=None):
         return IfElseBlock(bool_cond, true_block, false_block)
 
-    def create_func(self, func_name, params, func_code):
-        pass
+    def while_loop(self, bool_cond, code_block):
+        return WhileBlock(bool_cond, code_block)
 
     def define_func(self, func_name, arg_list, code, return_type):
         if func_name not in self.function_def_table.keys():

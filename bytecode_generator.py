@@ -27,12 +27,14 @@ class BytecodeGenerator:
                 bytecode += self.lowerArithmeticExpr(node)
             elif isinstance(node, IfElseBlock):
                 bytecode += self.lowerIfElseBlock(node)
+            elif isinstance(node, WhileBlock):
+                bytecode += self.lowerWhileBlock(node)
             elif isinstance(node, InterpreterDebugNode):
                 bytecode += [('DEBUG_PRINT', node.output)]
             elif isinstance(node, Evaluatable):
                 raise Exception("Evaluatable found at top outer-most level of CFG: {}".format(node))
-            elif isinstance(node, BooleanCondition):
-                raise Exception("BooleanCondition found at top outer-most level of CFG: {}".format(node))
+            else:
+                raise Exception("Invalid node found at top outer-most level of CFG: {}".format(node))
         return bytecode
 
     def lowerArithmeticExpr(self, node):
@@ -65,8 +67,10 @@ class BytecodeGenerator:
     def lowerAssignment(self, node):
         instrs, value_at = self.lowerEvaluatable(node.evaluation)
         if not node.var.var_name in self.symbol_table:
-            self.symbol_table[node.var.var_name] = []
-        self.symbol_table[node.var.var_name].append(value_at)
+            self.symbol_table[node.var.var_name] = [value_at]
+        else:
+            var_reg = self.symbol_table[node.var.var_name][-1]
+            instrs += [('SET', var_reg, value_at)]
         return instrs
 
     def lowerEvaluatable(self, node):
@@ -97,8 +101,8 @@ class BytecodeGenerator:
 
         instrs = comp_instrs
         if_label, else_label, done_label = self.get_next_label(), self.get_next_label(), self.get_next_label()
-        instrs.append(('CHK_JMP', cmp_value_at, if_label))
-        instrs.append(('JMP',  else_label))
+        instrs += [('CHK_JMP', cmp_value_at, if_label)]
+        instrs += [('JMP',  else_label)]
 
         if_instrs = [('LABEL', if_label)]
         if_instrs += self.generate_bytecode(true_block)
@@ -108,6 +112,26 @@ class BytecodeGenerator:
         else_instrs.append(('JMP', done_label)) # not needed, but doesn't hurt
         instrs += if_instrs + else_instrs
         instrs.append(('LABEL', done_label))
+
+        return instrs
+
+    def lowerWhileBlock(self, node):
+        """
+        Two boolean conidition checks are created, so that we can maintain SSA form in the cmp_value at registers
+        :param node:
+        :return:
+        """
+        code_block = node.code_block
+
+        comp_instrs, cmp_value_at = self.lowerBooleanCondition(node.bool_cond)
+        block_instrs = self.generate_bytecode(code_block)
+        start_loop_label, end_loop_label = self.get_next_label(), self.get_next_label()
+        instrs = [('LABEL', start_loop_label)]
+        instrs += comp_instrs
+        instrs += [('NCHK_JMP', cmp_value_at, end_loop_label)]
+        instrs += block_instrs
+        instrs += [('JMP', start_loop_label)]
+        instrs += [('LABEL', end_loop_label)]
 
         return instrs
 
