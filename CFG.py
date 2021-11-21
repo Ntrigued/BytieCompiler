@@ -62,16 +62,19 @@ class FuncCall(Evaluatable):
         print("{}FuncCall: {}(".format('\t'*indent, self.func_name))
         for arg in self.args:
             arg.print(indent+1)
-        print('\t'*indent +')')
+        print('\t'*indent + ')')
 
 
 class FunctionDef(CFGNode):
-    def __init__(self, func_name, code, return_type, arg_list=[]):
+    def __init__(self, func_name, code_block, return_type, arg_list=[]):
         super().__init__()
 
         assert isinstance(func_name, str)
-        assert isinstance(code, list)
-        for item in code:
+        assert isinstance(arg_list, list)
+        for item in arg_list:
+            assert isinstance(item, Variable)
+        assert isinstance(code_block, list)
+        for item in code_block:
             assert isinstance(item, CFGNode)
         assert isinstance(return_type, DataTypes)
         assert isinstance(arg_list, list)
@@ -79,6 +82,21 @@ class FunctionDef(CFGNode):
         self.func_name = func_name
         self.return_type = return_type
         self.arg_list = arg_list
+        self.code_block = code_block
+
+    def print(self, indent=0):
+        print('\t'*indent + 'FunctionDef<{}>('.format(self.return_type))
+        print('\t'*(indent+1) + 'func_name: {}'.format(self.func_name))
+        print('\t'*(indent+1) + 'arg_list:')
+        if len(self.arg_list) > 0:
+            for node in self.code_block:
+                node.print(indent + 2)
+        else:
+            print('\t'*(indent+1) + '()')
+        print('\t'*(indent+1) + 'code_block:')
+        for node in self.code_block:
+            node.print(indent+2)
+        print('\t'*indent + ')')
 
 
 class Constant(Evaluatable):

@@ -25,6 +25,8 @@ class BytecodeGenerator:
                 bytecode += self.lowerAssignment(node)
             elif isinstance(node, ArithmeticExpr):
                 bytecode += self.lowerArithmeticExpr(node)
+            elif isinstance(node, FunctionDef):
+                bytecode += self.lowerFunctionDef(node)
             elif isinstance(node, IfElseBlock):
                 bytecode += self.lowerIfElseBlock(node)
             elif isinstance(node, WhileBlock):
@@ -94,6 +96,64 @@ class BytecodeGenerator:
             raise Exception("Can't evaluate as an Evaluatable: {}".format(node)) #TODO: make node types implement
                                                                                  # # __str__ so something more useful can be printed
         return instrs, value_at
+
+    def lowerFunctionDef(self, node):
+        func_name = node.func_name
+        arg_list = node.arg_list
+        return_type = node.return_type
+        code_block = node.code_block
+
+        arg_mapping = []
+        for arg in arg_list:
+            var_name = arg.var_name
+            reg_id = self.get_next_register()
+            arg_mapping.append(reg_id)
+        node.arg_mapping = arg_mapping
+
+        if func_name not in self.function_table.keys():
+            self.function_table[func_name] = []
+        self.function_table[func_name].append(node)
+
+    def lowerFuncCall(self, node):
+        func_name = node.func_name
+        args = node.args
+
+        instrs = []
+        #TODO: Check against definitions to named function with correct parameters
+        func_info = self.function_table[func_name][-1]
+
+        funcreg_to_args = {}
+        for idx in range(len(node.arg_list)):
+            # setup register holding arg value, and register which function will work on
+            # save mapping for when we place the value back in the arg register
+            arg = args[idx]
+            arg_instrs, arg_value_at = self.lowerEvaluatable(arg)
+            funcreg_id = func_info.arg_mapping[idx]
+            funcreg_to_args[funcreg_id] = arg_value_at
+            param = node.arg_list[idx]
+            param_name = param.var_name
+            instrs += arg_instrs
+            # copy contents of arg register into func register
+            instrs += [('SET', funcreg_id, arg_value_at)]
+            # Temporarily, add function param names to symbol_table
+            if not param_name in self.symbol_table.keys():
+                self.symbol_table[param_name] = []
+            self.symbol_table[param_name].append(funcreg_id)
+        # execute func code
+        #TODO
+        instrs += func_instrs
+        for idx in range(len(node.arg_list)):
+            param = node.arg_list[idx]
+            param_name = param.var_name
+            funcreg_id = func_info.arg_mapping[idx]
+
+            # copy contents of func register back to arg register
+            # and remove symbol table entries for function params
+            arg_reg = funcreg_to_args[func_reg]
+            instrs += [('SET', arg_reg, func_reg)]
+            self.symbol_table[param_name].pop()
+
+        return instrs
 
     def lowerIfElseBlock(self, node):
         comp_instrs, cmp_value_at = self.lowerBooleanCondition(node.bool_cond)
